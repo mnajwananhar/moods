@@ -1,26 +1,129 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fefefe;
+  --foreground: #1a1a1a;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  /* Warm Earth Tones */
+  --color-forest-50: #f0f9f4;
+  --color-forest-100: #dcf2e4;
+  --color-forest-200: #bbe5cc;
+  --color-forest-300: #8dd1a7;
+  --color-forest-400: #5bb57c;
+  --color-forest-500: #369957;
+  --color-forest-600: #277a44;
+  --color-forest-700: #206238;
+  --color-forest-800: #1d4f2f;
+  --color-forest-900: #1a4428;
+
+  --color-sage-50: #f6f7f4;
+  --color-sage-100: #eaeee0;
+  --color-sage-200: #d6ddc4;
+  --color-sage-300: #bbc79e;
+  --color-sage-400: #9eb077;
+  --color-sage-500: #849757;
+  --color-sage-600: #677643;
+  --color-sage-700: #525d37;
+  --color-sage-800: #434b30;
+  --color-sage-900: #3a412b;
+
+  --color-orange-50: #fff7ed;
+  --color-orange-100: #ffedd5;
+  --color-orange-200: #fed7aa;
+  --color-orange-300: #fdba74;
+  --color-orange-400: #fb923c;
+  --color-orange-500: #f97316;
+  --color-orange-600: #ea580c;
+  --color-orange-700: #c2410c;
+  --color-orange-800: #9a3412;
+  --color-orange-900: #7c2d12;
+
+  --color-beige-50: #fefcf8;
+  --color-beige-100: #fdf8f0;
+  --color-beige-200: #fbf0de;
+  --color-beige-300: #f7e4c3;
+  --color-beige-400: #f2d49e;
+  --color-beige-500: #edc274;
+  --color-beige-600: #e5a952;
+  --color-beige-700: #d18c3c;
+  --color-beige-800: #b06f33;
+  --color-beige-900: #8f5a2e;
+
+  /* Custom shadows */
+  --shadow-warm: 0 4px 6px -1px rgba(234, 88, 12, 0.1),
+    0 2px 4px -1px rgba(234, 88, 12, 0.06);
+  --shadow-earth: 0 10px 15px -3px rgba(54, 153, 87, 0.1),
+    0 4px 6px -2px rgba(54, 153, 87, 0.05);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0f1a0f;
+    --foreground: #f0f9f4;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-sage-100);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-sage-400);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-sage-500);
+}
+
+/* Smooth transitions */
+* {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-pulse-slow {
+  animation: pulse 2s infinite;
 }
