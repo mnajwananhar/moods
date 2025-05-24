@@ -2,43 +2,64 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import { NutritionInput, MLResponse } from "@/lib/ml-service";
+import { spawn } from "child_process";
+import path from "path";
 
 // Fungsi untuk memanggil model ML
 async function callMLModel(input: NutritionInput): Promise<MLResponse> {
-  // Implementasi pemanggilan model ML Anda di sini
-  // Ini adalah contoh implementasi dummy yang menggunakan input
-  const { calorie_level, protein_level, fat_level, carb_level } = input;
+  try {
+    const scriptPath = path.join(
+      process.cwd(),
+      "src",
+      "scripts",
+      "ml_inference.py"
+    );
 
-  // Logika sederhana untuk menentukan mood berdasarkan input
-  let mood = "balanced";
-  const confidence = 0.85;
+    // Panggil script Python untuk inferensi
+    const pythonProcess = spawn("python", [
+      scriptPath,
+      "--calorie_level",
+      input.calorie_level.toString(),
+      "--protein_level",
+      input.protein_level.toString(),
+      "--fat_level",
+      input.fat_level.toString(),
+      "--carb_level",
+      input.carb_level.toString(),
+    ]);
 
-  // Logika sederhana berdasarkan kombinasi input
-  if (calorie_level > 2 && protein_level > 1) {
-    mood = "energizing";
-  } else if (fat_level > 2 && carb_level > 2) {
-    mood = "calming";
-  } else if (protein_level > 2 && carb_level < 2) {
-    mood = "focused";
+    return new Promise((resolve, reject) => {
+      let result = "";
+      let error = "";
+
+      pythonProcess.stdout.on("data", (data) => {
+        result += data.toString();
+      });
+
+      pythonProcess.stderr.on("data", (data) => {
+        error += data.toString();
+      });
+
+      pythonProcess.on("close", (code) => {
+        if (code !== 0) {
+          console.error("Python process error:", error);
+          reject(new Error("Failed to get ML prediction"));
+          return;
+        }
+
+        try {
+          const prediction = JSON.parse(result);
+          resolve(prediction);
+        } catch (e) {
+          console.error("Failed to parse ML result:", e);
+          reject(new Error("Invalid ML prediction result"));
+        }
+      });
+    });
+  } catch (error) {
+    console.error("ML model error:", error);
+    throw new Error("Failed to call ML model");
   }
-
-  return {
-    mood_prediction: {
-      mood,
-      confidence,
-    },
-    food_recommendations: [
-      {
-        food_name: "Nasi Goreng",
-        calories: 350,
-        proteins: 12,
-        fats: 15,
-        carbohydrates: 45,
-        similarity_score: 0.9,
-        mood_category: mood,
-      },
-    ],
-  };
 }
 
 export async function POST(request: NextRequest) {

@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Brain,
   Menu,
   X,
   User,
-  Settings,
   LogOut,
   Utensils,
   Users,
@@ -17,12 +16,15 @@ import {
   BarChart3,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/components/ToastProvider";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
   const { user, signOut, loading } = useAuth();
+  const { success, error } = useToast();
 
   // Close mobile menu when route changes
   useEffect(() => {
@@ -59,8 +61,7 @@ export default function Navbar() {
   const userNavigation = [
     { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
     { name: "Riwayat", href: "/history", icon: History },
-    { name: "Profil", href: "/profile", icon: User },
-    { name: "Pengaturan", href: "/profile/settings", icon: Settings },
+    { name: "Profil", href: "/profile/", icon: User },
   ];
 
   const isActive = (href: string) => {
@@ -72,9 +73,25 @@ export default function Navbar() {
 
   const handleSignOut = async () => {
     try {
+      console.log("Sign out clicked"); // Tambah log untuk debug
       await signOut();
-    } catch (error) {
-      console.error("Error signing out:", error);
+      success("Berhasil Keluar", "Anda telah berhasil keluar dari akun Anda.");
+      router.push("/");
+      setTimeout(() => {
+        window.location.reload(); // Paksa reload agar context dan session benar-benar update
+      }, 300);
+    } catch (err) {
+      console.error("Error signing out:", err);
+      error(
+        "Gagal Keluar",
+        err instanceof Error && err.message
+          ? err.message
+          : "Terjadi kesalahan saat mencoba keluar. Silakan coba lagi."
+      );
+      alert(
+        "Gagal logout: " +
+          (err instanceof Error && err.message ? err.message : "Unknown error")
+      );
     }
   };
 

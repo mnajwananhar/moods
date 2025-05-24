@@ -23,12 +23,8 @@ CREATE TABLE IF NOT EXISTS profiles (
   joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   last_active TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   is_public BOOLEAN DEFAULT TRUE,
-  total_points INTEGER DEFAULT 0,
-  streak_days INTEGER DEFAULT 0,
-  level INTEGER DEFAULT 1,
   
-  CONSTRAINT valid_age CHECK (age > 0 AND age < 150),
-  CONSTRAINT valid_level CHECK (level > 0)
+  CONSTRAINT valid_age CHECK (age > 0 AND age < 150)
 );
 
 -- Health profiles for dietary restrictions and health conditions
@@ -208,66 +204,6 @@ CREATE TABLE IF NOT EXISTS comments (
 );
 
 -- ============================================================================
--- CHALLENGES & GAMIFICATION TABLES
--- ============================================================================
-
--- Weekly challenges
-CREATE TABLE IF NOT EXISTS challenges (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  title TEXT NOT NULL,
-  description TEXT,
-  type TEXT NOT NULL CHECK (type IN ('weekly', 'daily', 'monthly', 'special')),
-  category TEXT NOT NULL CHECK (category IN ('nutrition', 'mood', 'community', 'education')),
-  difficulty TEXT DEFAULT 'medium' CHECK (difficulty IN ('easy', 'medium', 'hard')),
-  start_date DATE NOT NULL,
-  end_date DATE NOT NULL,
-  target_value INTEGER, -- Target number to achieve
-  target_unit TEXT, -- Unit of measurement
-  reward_points INTEGER DEFAULT 0,
-  reward_badge TEXT,
-  participant_count INTEGER DEFAULT 0,
-  completion_count INTEGER DEFAULT 0,
-  is_active BOOLEAN DEFAULT TRUE,
-  is_featured BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  
-  INDEX idx_challenges_active (is_active, start_date, end_date),
-  INDEX idx_challenges_category (category)
-);
-
--- User challenge participation
-CREATE TABLE IF NOT EXISTS user_challenges (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  challenge_id UUID REFERENCES challenges(id) ON DELETE CASCADE,
-  progress INTEGER DEFAULT 0,
-  target INTEGER DEFAULT 100,
-  completed BOOLEAN DEFAULT FALSE,
-  completed_at TIMESTAMP WITH TIME ZONE,
-  reward_claimed BOOLEAN DEFAULT FALSE,
-  joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  
-  UNIQUE(user_id, challenge_id),
-  INDEX idx_user_challenges_user (user_id),
-  INDEX idx_user_challenges_challenge (challenge_id)
-);
-
--- User achievements and badges
-CREATE TABLE IF NOT EXISTS user_badges (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  badge_type TEXT NOT NULL, -- first_recipe, mood_tracker, etc.
-  badge_name TEXT NOT NULL,
-  badge_icon TEXT, -- Icon identifier
-  description TEXT,
-  rarity TEXT DEFAULT 'common' CHECK (rarity IN ('common', 'rare', 'epic', 'legendary')),
-  earned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  
-  INDEX idx_badges_user (user_id),
-  INDEX idx_badges_type (badge_type)
-);
-
--- ============================================================================
 -- EDUCATION TABLES
 -- ============================================================================
 
@@ -413,8 +349,6 @@ ALTER TABLE food_recommendations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE community_posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE post_likes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_challenges ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_badges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bookmarks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_analytics ENABLE ROW LEVEL SECURITY;
@@ -471,12 +405,6 @@ CREATE POLICY "Users can manage own health profiles" ON health_profiles
 
 CREATE POLICY "Users can manage own settings" ON user_settings
   FOR ALL USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can manage own challenges" ON user_challenges
-  FOR ALL USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can view own badges" ON user_badges
-  FOR SELECT USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can manage own bookmarks" ON bookmarks
   FOR ALL USING (auth.uid() = user_id);
@@ -579,12 +507,6 @@ CREATE TRIGGER update_user_stats_on_assessment
 -- INITIAL DATA SEEDING
 -- ============================================================================
 
--- Insert sample challenges
-INSERT INTO challenges (title, description, type, category, start_date, end_date, reward_points) VALUES
-('Analisis Nutrisi 7 Hari', 'Lakukan analisis nutrisi setiap hari selama seminggu', 'weekly', 'nutrition', CURRENT_DATE, CURRENT_DATE + INTERVAL '7 days', 50),
-('Bagikan Resep Sehat', 'Bagikan minimal 3 resep makanan sehat ke komunitas', 'weekly', 'community', CURRENT_DATE, CURRENT_DATE + INTERVAL '7 days', 75),
-('Baca 5 Artikel Edukasi', 'Baca dan selesaikan 5 artikel tentang nutrisi', 'weekly', 'education', CURRENT_DATE, CURRENT_DATE + INTERVAL '7 days', 40);
-
 -- Insert sample articles
 INSERT INTO articles (title, slug, content, excerpt, category, reading_time, is_published) VALUES
 ('Dasar-Dasar Nutrisi untuk Pemula', 'dasar-nutrisi-pemula', 'Artikel lengkap tentang dasar-dasar nutrisi...', 'Pelajari konsep dasar nutrisi yang perlu diketahui setiap orang', 'nutrition-basics', 8, true),
@@ -602,7 +524,6 @@ SELECT
     p.full_name,
     p.total_points,
     p.level,
-    p.streak_days,
     COUNT(na.id) as total_assessments,
     COUNT(CASE WHEN fr.is_liked = true THEN 1 END) as favorite_foods,
     COALESCE(na_recent.predicted_mood, 'none') as recent_mood
@@ -616,7 +537,7 @@ LEFT JOIN LATERAL (
     ORDER BY created_at DESC 
     LIMIT 1
 ) na_recent ON true
-GROUP BY p.id, p.full_name, p.total_points, p.level, p.streak_days, na_recent.predicted_mood;
+GROUP BY p.id, p.full_name, p.total_points, p.level, na_recent.predicted_mood;
 
 -- View for community activity
 CREATE VIEW community_activity AS
@@ -655,9 +576,6 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_foods_search
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_posts_type_created 
     ON community_posts(type, created_at DESC);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_challenges_active 
-    ON challenges(is_active, start_date, end_date) WHERE is_active = true;
-
 -- ============================================================================
 -- CLEANUP AND MAINTENANCE
 -- ============================================================================
@@ -688,12 +606,11 @@ This schema provides:
 1. Complete user management with profiles, health data, and preferences
 2. Core nutrition assessment and ML recommendation functionality  
 3. Full-featured community system with posts, likes, comments
-4. Gamification with challenges, badges, and points
-5. Educational content management
-6. Analytics and tracking capabilities
-7. Proper security with RLS policies
-8. Performance optimizations with strategic indexes
-9. Maintenance and cleanup procedures
+4. Educational content management
+5. Analytics and tracking capabilities
+6. Proper security with RLS policies
+7. Performance optimizations with strategic indexes
+8. Maintenance and cleanup procedures
 
 To deploy:
 1. Run this schema in your Supabase SQL editor
